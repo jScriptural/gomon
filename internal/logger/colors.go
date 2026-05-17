@@ -9,6 +9,7 @@ const (
 	COLORWARN = "\033[1;33m"
 	COLORGRAY = "\033[1;30m"
 	COLORCYAN = "\033[1;36m"
+	COLORNEUTRAL = "\033[0;37m"
 )
 
 func Colorize(color, text string) string {

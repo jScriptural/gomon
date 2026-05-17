@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"time"
 )
 
 type GomonHandler struct {
@@ -21,7 +22,7 @@ func (h *GomonHandler) Enabled(_ context.Context, _ slog.Level) bool {
 }
 
 func (h *GomonHandler) Handle(_ context.Context, r slog.Record) error {
-	timeStr := Colorize(COLORGRAY, r.Time.Format("15:04:05"))
+	timeStr := Colorize(COLORGRAY, r.Time.Format(time.RFC3339))
 
 	var levelStr string
 	switch r.Level {
@@ -39,7 +40,12 @@ func (h *GomonHandler) Handle(_ context.Context, r slog.Record) error {
 
 	attrs := ""
 	r.Attrs(func(a slog.Attr) bool {
-		attrs += fmt.Sprintf(" %s%s=%v%s", COLORGRAY, a.Key, a.Value.Any(), COLORRESET)
+		switch r.Level {
+		case slog.LevelError:
+			attrs += fmt.Sprintf(" %s%s=%v%s", COLORGRAY, a.Key, a.Value.Any(), COLORRESET)
+		default:
+			attrs += fmt.Sprintf(" %s%s=%v%s", COLORNEUTRAL, a.Key, a.Value.Any(), COLORRESET)
+		}
 		return true
 	})
 

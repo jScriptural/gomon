@@ -23,8 +23,6 @@ type Hooks struct {
 	PostStart string `json:"poststart"`
 }
 
-type Env map[string]string
-
 type Config struct {
 	Watch       []string `json:"watch"`
 	Ext         []string `json:"ext"`
@@ -34,7 +32,7 @@ type Config struct {
 	Delay       Duration `json:"delay"`
 	LegacyWatch bool     `json:"legacy_watch"`
 	Hooks       Hooks    `json:"hooks"`
-	Env         Env      `json:"env"`
+	Env         []string `json:"env"`
 }
 
 func (d *Duration) UnmarshalJSON(b []byte) error {
@@ -57,15 +55,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	default:
 		return fmt.Errorf("invalid duration type: %T", v)
 	}
-}
-
-func (env Env) ToSlice() []string {
-	var s []string
-	for k, v := range env {
-		s = append(s, fmt.Sprintf("%s=%s", k, v))
-	}
-
-	return s
 }
 
 // for debugging purpose

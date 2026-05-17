@@ -23,19 +23,20 @@ func LoadConfig() (*Config, error) {
 	config := &Config{
 		Delay: Duration(500 * time.Millisecond),
 		Watch: []string{"."},
+		Env:   os.Environ(),
 	}
 
 	f, err := os.Open(configPath)
 	if err != nil {
 		switch {
-		case !os.IsNotExist(err):
-			return nil, err
 		case os.IsNotExist(err):
 			defer func() {
 				if e := writeConfigFile(config); e != nil {
 					slog.Info("Failed to update config", "error", e)
 				}
 			}()
+		default:
+			return nil,err;
 		}
 	} else {
 		decoder := json.NewDecoder(f)
@@ -66,6 +67,7 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	postBuild := fs.String("postbuild", "", "Command to run after building binary")
 	ext := fs.StringSliceP("ext", "e", nil, "Comma-separated file extensions and directory to watch(support simple glob patterns)")
 	ignore := fs.StringSliceP("ignore", "x", nil, "Comma-separated file extensions and directory to ignore(support simple glob patterns)")
+	env := fs.StringSlice("env", nil, "Comma-separated, key=value pair")
 	delay := fs.StringP("delay", "d", "500ms", "Debounce delay")
 
 	fs.Parse(args)
@@ -83,6 +85,11 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	}
 	if fs.Changed("ext") {
 		config.Ext = *ext
+	}
+	if fs.Changed("env") {
+		for _,v := range *env {
+			config.Env = append(config.Env,v)
+		}
 	}
 	if fs.Changed("postbuild") {
 		config.Hooks.PostBuild = *postBuild
