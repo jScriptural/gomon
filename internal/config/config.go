@@ -2,9 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	flag "github.com/spf13/pflag"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -27,15 +27,22 @@ func LoadConfig() (*Config, error) {
 
 	f, err := os.Open(configPath)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
+		switch {
+		case !os.IsNotExist(err):
 			return nil, err
+		case os.IsNotExist(err):
+			defer func() {
+				if e := writeConfigFile(config); e != nil {
+					slog.Info("Failed to update config", "error", e)
+				}
+			}()
 		}
 	} else {
-		defer f.Close()
 		decoder := json.NewDecoder(f)
 		if err := decoder.Decode(config); err != nil {
 			return nil, err
 		}
+		f.Close()
 	}
 
 	err = parseFlags(os.Args[1:], config, usage)
@@ -103,6 +110,22 @@ func parseFlags(args []string, config *Config, usage func()) error {
 			d = Duration(t)
 		}
 		config.Delay = d
+	}
+
+	return nil
+}
+
+func writeConfigFile(c *Config) error {
+	f, err := os.OpenFile(configPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", " ")
+	if err := enc.Encode(c); err != nil {
+		return err
 	}
 
 	return nil

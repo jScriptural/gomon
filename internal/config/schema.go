@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	//"strings"
+	"bytes"
 	"time"
 )
 
@@ -64,4 +66,12 @@ func (env Env) ToSlice() []string {
 	}
 
 	return s
+}
+
+// for debugging purpose
+func (c *Config) String() string {
+	buffer := &bytes.Buffer{}
+	json.NewEncoder(buffer).Encode(c)
+
+	return buffer.String()
 }
