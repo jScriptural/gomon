@@ -21,9 +21,16 @@ var (
 
 func LoadConfig() (*Config, error) {
 	config := &Config{
-		Delay: Duration(500 * time.Millisecond),
+		Delay: Duration(time.Duration(500 * time.Millisecond)),
 		Watch: []string{"."},
 		Env:   os.Environ(),
+		Ignore: []string{
+			"./.git",
+			"./.gitignore",
+			"./node_modules",
+			"*.swp",
+			"*.swx",
+		},
 	}
 
 	f, err := os.Open(configPath)

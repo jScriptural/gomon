@@ -57,6 +57,17 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 }
 
+
+
+func (d Duration) MarshalJSON() ([]byte, error) {
+	underlyingDuration := time.Duration(d)
+
+	strValue := underlyingDuration.String()
+
+	return json.Marshal(strValue)
+}
+
+
 // for debugging purpose
 func (c *Config) String() string {
 	buffer := &bytes.Buffer{}

@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -64,13 +65,17 @@ func (e *Executor) Signal() {
 func (e *Executor) forwardSignal() {
 	for {
 		for sig := range e.signalChan {
-			if e.cmd.Process != nil {
+			if e.isCmdActive {
 				err := e.cmd.Process.Signal(sig)
 				if err != nil {
-					slog.Error("fail to forward signal", "signal", sig)
+					if errors.Is(err, os.ErrProcessDone) {
+						continue
+					}
+					slog.Error("Fail to forward signal", "signal", sig, "error", err)
 				}
 			}
 			if sig == SIGQUIT {
+				slog.Info("gomon quits")
 				os.Exit(0)
 				return
 			}
