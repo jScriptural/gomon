@@ -50,22 +50,21 @@ func (h *GomonHandler) Handle(_ context.Context, r slog.Record) error {
 	})
 
 	prefix := Colorize(COLORCYAN, "gomon")
-	_, err := fmt.Fprintf(h.w, "%s [%s] %s %s%s\n", 
-		timeStr, 
-		prefix, 
-		levelStr, 
-		r.Message, 
+	_, err := fmt.Fprintf(h.w, "%s [%s] %s %s%s\n",
+		timeStr,
+		prefix,
+		levelStr,
+		r.Message,
 		attrs,
 	)
 	return err
 }
 
-func (h *GomonHandler) WithAttrs(attrs []slog.Attr) slog.Handler { 
-	return h 
+func (h *GomonHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return h
 }
 
-
-func (h *GomonHandler) WithGroup(name string) slog.Handler    { 
+func (h *GomonHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 

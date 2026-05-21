@@ -1,51 +1,49 @@
 package monitor
 
-
 import (
+	"context"
+	"errors"
 	"github.com/fsnotify/fsnotify"
 	"github.com/jscriptural/gomon/internal/config"
 	"github.com/jscriptural/gomon/internal/runner"
-	"context"
-	"os"
-	"log/slog"
-	"errors"
-	"fmt"
 	"io/fs"
+	"log/slog"
+	"os"
 	"path/filepath"
 )
 
 type Monitor struct {
-	executor *runner.Executor
-	config *config.Config
-	watcher *fsnotify.Watcher
+	executor   *runner.Executor
+	config     *config.Config
+	watcher    *fsnotify.Watcher
 	cancelExec context.CancelFunc
-	ctx context.Context
+	ctx        context.Context
 }
 
 func NewMonitor(ctx context.Context, config *config.Config) *Monitor {
 	ctx, cancel := context.WithCancel(ctx)
 
-	executor := runner.NewExecutor(ctx,config)
+	executor := runner.NewExecutor(ctx, config)
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
-		slog.Error("Creating a new watcher","error",err)
+		slog.Error("Creating a new watcher", "error", err)
 		os.Exit(1)
 	}
 
 	executor.Signal()
-	return &Monitor {
-		executor: executor,
-		config: config,
-		watcher: w,
+	return &Monitor{
+		executor:   executor,
+		config:     config,
+		watcher:    w,
 		cancelExec: cancel,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 func (m *Monitor) Watch() error {
 	go func() {
 		for {
-			m.watchLoop();
+			m.watchLoop()
 
 			if m.ctx.Err() != nil {
 				os.Exit(2)
@@ -75,92 +73,72 @@ func (m *Monitor) Watch() error {
 		}
 	}()
 
-
-
 	if err := m.watchDirs(); err != nil {
 		return err
 	}
 
-	go m.executor.Trigger();
+	go m.executor.Trigger()
 	return nil
 }
 
-
-
 func (m *Monitor) watchDirs() error {
 	defer func() {
-		watcherList := m.watcher.WatchList();
-		slog.Info("","Watched Directories",watcherList,"Number of directories",len(watcherList))
+		watcherList := m.watcher.WatchList()
+		slog.Info("", "Watched Directories", watcherList, "Number of directories", len(watcherList))
 	}()
 
-	watchList := m.config.Watch;
-	ignoreList := m.config.Ignore;
+	watchList := m.config.Watch
+	ignoreList := m.config.Ignore
 
 	for _, rootDir := range watchList.Dir {
-		slog.Debug("Walking directory","rootDir",rootDir)
-		absRootDir, err := filepath.Abs(rootDir);
+		absRootDir, err := filepath.Abs(rootDir)
 		if err != nil {
-			slog.Debug("Fail to get absolute path","error",err)
-			continue;
+			slog.Warn("Fail to get absolute path", "error", err)
+			continue
 		}
-		slog.Debug("Walking directory","AbsRootDir",absRootDir)
 		err = filepath.WalkDir(absRootDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				if errors.Is(err, fs.ErrPermission) {
-					slog.Warn("Path error","error",err)
+					slog.Warn("Path error", "error", err)
 					return fs.SkipDir
 				}
 				return err
 			}
-
-			slog.Debug(path,"isDir",d.IsDir())
 			if d.IsDir() {
-				slog.Debug("1")
-				for _,dir := range ignoreList.Dir {
-					absDir,err := filepath.Abs(dir)
+				for _, dir := range ignoreList.Dir {
+					absDir, err := filepath.Abs(dir)
 					if err != nil {
-						slog.Warn("Fail to get Absolute path","error",err)
-						continue;
+						slog.Warn("Fail to get Absolute path", "error", err)
+						continue
 					}
-					slog.Debug("2")
-					if m,_ := filepath.Match(absDir,path); m {
-						slog.Debug("3")
+					if m, _ := filepath.Match(absDir, path); m {
 						return fs.SkipDir
 					}
 				}
-				slog.Debug("4")
-				for _,p := range ignoreList.Glob {
-					ok,err := filepath.Match(p,path);
+				for _, p := range ignoreList.Glob {
+					ok, err := filepath.Match(p, path)
 					if err != nil {
-						slog.Warn("Bad glob pattern","glob", p,"error",err)
+						slog.Warn("Bad glob pattern", "glob", p, "error", err)
 					}
 					if ok {
 						return fs.SkipDir
-					} 
+					}
 				}
-				slog.Debug("5")
 
-				slog.Debug("6")
-				slog.Debug("Registering directory target to watcher", "path", path)
 				if err := m.watcher.Add(path); err != nil {
-					return fmt.Errorf("failed adding path %s to watcher: %w", path, err)
+					slog.Warn("Fail to add path to watcher", "path", path, "error", err)
 				}
 			}
-			slog.Debug("7")
 			return nil
 		})
 
-		slog.Debug("8")
 		if err != nil {
-			return err;
+			return err
 		}
 	}
 
-	slog.Debug("9")
-	return nil;
+	return nil
 }
-
-
 
 func (m *Monitor) watchLoop() {
 	for {
@@ -181,62 +159,60 @@ func (m *Monitor) watchLoop() {
 			}
 
 			if !m.isIgnoredEvent(evt) {
-				slog.Info("Captured Event","file",evt.Name,"Op", evt.Op.String())
+				slog.Info("Captured Event", "file", evt.Name, "Op", evt.Op.String())
 				go m.executor.Trigger()
 			}
 		}
 	}
 }
 
-
-func (m *Monitor)isIgnoredEvent(evt fsnotify.Event) bool {
-	ignoreList := m.config.Ignore;
-	absName,err := filepath.Abs(evt.Name);
+func (m *Monitor) isIgnoredEvent(evt fsnotify.Event) bool {
+	ignoreList := m.config.Ignore
+	absName, err := filepath.Abs(evt.Name)
 	if err != nil {
-		absName = evt.Name;
+		absName = evt.Name
 	}
 
-	for _,dir := range ignoreList.Dir {
-		absDir, err := filepath.Abs(dir);
+	for _, dir := range ignoreList.Dir {
+		absDir, err := filepath.Abs(dir)
 		if err != nil {
-			absDir = dir;
+			absDir = dir
 		}
-		if ok,_ := filepath.Match(absDir,absName); ok {
-			return true;
-		}
-	}
-
-	for _,f := range ignoreList.File {
-		absF, err := filepath.Abs(f);
-		if err != nil {
-			absF = f; 
-		}
-		if ok,_ := filepath.Match(absF,absName); ok {
-			return true;
+		if ok, _ := filepath.Match(absDir, absName); ok {
+			return true
 		}
 	}
 
-	for _,p := range ignoreList.Glob {
-		ok,err := filepath.Match(p,absName);
+	for _, f := range ignoreList.File {
+		absF, err := filepath.Abs(f)
 		if err != nil {
-			slog.Warn("Bad glob pattern","glob",p,"error",err)
-			continue;
+			absF = f
+		}
+		if ok, _ := filepath.Match(absF, absName); ok {
+			return true
+		}
+	}
+
+	for _, p := range ignoreList.Glob {
+		ok, err := filepath.Match(p, absName)
+		if err != nil {
+			slog.Warn("Bad glob pattern", "glob", p, "error", err)
+			continue
 		}
 		if ok {
-			return true;
+			return true
 		}
 	}
 
-	for _,ext := range m.config.Ext {
-		e := filepath.Ext(absName);
+	for _, ext := range m.config.Ext {
+		e := filepath.Ext(absName)
 		if e == "" {
-			continue;
+			continue
 		}
 		if ext != e {
-			return true;
+			return true
 		}
 	}
 
 	return !evt.Has(fsnotify.Write) && !evt.Has(fsnotify.Create) && !evt.Has(fsnotify.Remove)
 }
-

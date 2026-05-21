@@ -90,7 +90,7 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	delay := fs.StringP("delay", "d", "500ms", "Debounce delay")
 	polling := fs.BoolP("polling", "p", false, "Prefer polling")
 
-	 _ = fs.Parse(args)
+	_ = fs.Parse(args)
 
 	if fs.Changed("build") {
 		config.Build = *build
@@ -170,7 +170,7 @@ func writeConfigFile(c *Config) error {
 	if err != nil {
 		return err
 	}
-	defer func(){ _ = f.Close()}()
+	defer func() { _ = f.Close() }()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", " ")

@@ -18,7 +18,7 @@ func main() {
 	slog.Warn("NO SUPPORT FOR POLLING YET.")
 	if config.Polling {
 		slog.Info("No support for polling yet")
-		return;
+		return
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
