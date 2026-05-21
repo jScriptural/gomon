@@ -33,7 +33,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       uses: golangci/golangci-lint-action@v6
       with:
-        version: v1.55
+        version: v2.12.2
 
     - name: Run Tests
       # If you write tests later, this ensures they pass across all platforms
