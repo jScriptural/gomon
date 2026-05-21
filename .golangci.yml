@@ -1,0 +1,15 @@
+version: "2"
+
+run:
+  go: "1.26"
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
