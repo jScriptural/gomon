@@ -14,7 +14,6 @@ type Duration time.Duration
 
 // Option holds the parsed commandline
 // arguments
-type Option map[string]string
 
 type Hooks struct {
 	PreBuild  string `json:"prebuild"`
@@ -23,16 +22,22 @@ type Hooks struct {
 	PostStart string `json:"poststart"`
 }
 
+type List struct {
+	File []string `json:"file"`
+	Dir  []string `json:"dir"`
+	Glob []string `json:"glob"`
+}
+
 type Config struct {
-	Watch       []string `json:"watch"`
-	Ext         []string `json:"ext"`
-	Ignore      []string `json:"ignore"`
-	Build       string   `json:"build"`
-	Run         string   `json:"run"`
-	Delay       Duration `json:"delay"`
-	LegacyWatch bool     `json:"legacy_watch"`
-	Hooks       Hooks    `json:"hooks"`
-	Env         []string `json:"env"`
+	Watch   List     `json:"watch"`
+	Ext     []string `json:"ext"`
+	Ignore  List     `json:"ignore"`
+	Build   string   `json:"build"`
+	Run     string   `json:"run"`
+	Delay   Duration `json:"delay"`
+	Polling bool     `json:"polling"`
+	Hooks   Hooks    `json:"hooks"`
+	Env     []string `json:"env"`
 }
 
 func (d *Duration) UnmarshalJSON(b []byte) error {
@@ -57,8 +62,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	}
 }
 
-
-
 func (d Duration) MarshalJSON() ([]byte, error) {
 	underlyingDuration := time.Duration(d)
 
@@ -66,7 +69,6 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(strValue)
 }
-
 
 // for debugging purpose
 func (c *Config) String() string {

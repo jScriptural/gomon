@@ -10,8 +10,6 @@ import (
 	"log/slog"
 	"errors"
 	"fmt"
-	"strings"
-	"slices"
 	"io/fs"
 	"path/filepath"
 )
@@ -45,16 +43,9 @@ func NewMonitor(ctx context.Context, config *config.Config) *Monitor {
 }
 
 func (m *Monitor) Watch() error {
-	wl, excl, err := m.filter()
-	if err != nil {
-		slog.Error("Watch fails", "error", err)
-		return err
-	}
-
-
 	go func() {
 		for {
-			m.watchLoop(excl);
+			m.watchLoop();
 
 			if m.ctx.Err() != nil {
 				os.Exit(2)
@@ -69,14 +60,15 @@ func (m *Monitor) Watch() error {
 			w, err := fsnotify.NewWatcher()
 			if err != nil {
 				slog.Error("Failed to recreate watcher engine", "error", err)
+				m.cancelExec()
 				os.Exit(1)
 			}
 			m.watcher = w
 
 			// Re-register directories
-			if err := m.watchDirs(wl,excl); err != nil {
+			if err := m.watchDirs(); err != nil {
 				slog.Error("Failed to re-crawl directories on recovery", "error", err)
-				continue
+				os.Exit(5)
 			}
 
 			slog.Info("File watcher self-healed successfully.")
@@ -85,7 +77,7 @@ func (m *Monitor) Watch() error {
 
 
 
-	if err := m.watchDirs(wl,excl); err != nil {
+	if err := m.watchDirs(); err != nil {
 		return err
 	}
 
@@ -95,45 +87,82 @@ func (m *Monitor) Watch() error {
 
 
 
-func (m *Monitor) watchDirs(watchList, cutList []string) error {
-	if len(watchList) == 0 {
-		return errors.New("empty watch list")
-	}
+func (m *Monitor) watchDirs() error {
+	defer func() {
+		watcherList := m.watcher.WatchList();
+		slog.Info("","Watched Directories",watcherList,"Number of directories",len(watcherList))
+	}()
 
-	for _, rootDir := range watchList {
-		err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+	watchList := m.config.Watch;
+	ignoreList := m.config.Ignore;
+
+	for _, rootDir := range watchList.Dir {
+		slog.Debug("Walking directory","rootDir",rootDir)
+		absRootDir, err := filepath.Abs(rootDir);
+		if err != nil {
+			slog.Debug("Fail to get absolute path","error",err)
+			continue;
+		}
+		slog.Debug("Walking directory","AbsRootDir",absRootDir)
+		err = filepath.WalkDir(absRootDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				if errors.Is(err, fs.ErrPermission) {
+					slog.Warn("Path error","error",err)
 					return fs.SkipDir
 				}
 				return err
 			}
 
+			slog.Debug(path,"isDir",d.IsDir())
 			if d.IsDir() {
-				if slices.Contains(cutList,path) {
-					return fs.SkipDir
+				slog.Debug("1")
+				for _,dir := range ignoreList.Dir {
+					absDir,err := filepath.Abs(dir)
+					if err != nil {
+						slog.Warn("Fail to get Absolute path","error",err)
+						continue;
+					}
+					slog.Debug("2")
+					if m,_ := filepath.Match(absDir,path); m {
+						slog.Debug("3")
+						return fs.SkipDir
+					}
 				}
+				slog.Debug("4")
+				for _,p := range ignoreList.Glob {
+					ok,err := filepath.Match(p,path);
+					if err != nil {
+						slog.Warn("Bad glob pattern","glob", p,"error",err)
+					}
+					if ok {
+						return fs.SkipDir
+					} 
+				}
+				slog.Debug("5")
+
+				slog.Debug("6")
 				slog.Debug("Registering directory target to watcher", "path", path)
 				if err := m.watcher.Add(path); err != nil {
 					return fmt.Errorf("failed adding path %s to watcher: %w", path, err)
 				}
 			}
+			slog.Debug("7")
 			return nil
 		})
 
+		slog.Debug("8")
 		if err != nil {
-			return err
+			return err;
 		}
 	}
 
-	return nil
+	slog.Debug("9")
+	return nil;
 }
 
 
 
-
-
-func (m *Monitor) watchLoop(ignore []string) {
+func (m *Monitor) watchLoop() {
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -150,47 +179,64 @@ func (m *Monitor) watchLoop(ignore []string) {
 				slog.Error("Event channel closed")
 				return
 			}
-			absEventPath, err := filepath.Abs(evt.Name)
-			if err != nil {
-				continue
-			}
 
-			ignored := false
-			for _, p := range ignore {
-				if absEventPath == p {
-					ignored = true
-					break
-				}
-
-				if match, _ := filepath.Match(p, filepath.Base(absEventPath)); match {
-					ignored = true
-					break
-				}
-				if strings.Contains(absEventPath, p) {
-					ignored = true
-					break
-				}
-			}
-
-			if !ignored && len(m.config.Ext) > 0 {
-				hasTargetExt := false
-				for _, ext := range m.config.Ext {
-					if strings.HasSuffix(absEventPath, ext) {
-						hasTargetExt = true
-						break
-					}
-				}
-				if !hasTargetExt {
-					ignored = true 
-				}
-			}
-
-			if !ignored && (evt.Has(fsnotify.Write) || evt.Has(fsnotify.Create) || evt.Has(fsnotify.Remove)) {
-				slog.Info("Event captured", "file", evt.Name, "op", evt.Op.String())
+			if !m.isIgnoredEvent(evt) {
+				slog.Info("Captured Event","file",evt.Name,"Op", evt.Op.String())
 				go m.executor.Trigger()
 			}
 		}
 	}
 }
 
+
+func (m *Monitor)isIgnoredEvent(evt fsnotify.Event) bool {
+	ignoreList := m.config.Ignore;
+	absName,err := filepath.Abs(evt.Name);
+	if err != nil {
+		absName = evt.Name;
+	}
+
+	for _,dir := range ignoreList.Dir {
+		absDir, err := filepath.Abs(dir);
+		if err != nil {
+			absDir = dir;
+		}
+		if ok,_ := filepath.Match(absDir,absName); ok {
+			return true;
+		}
+	}
+
+	for _,f := range ignoreList.File {
+		absF, err := filepath.Abs(f);
+		if err != nil {
+			absF = f; 
+		}
+		if ok,_ := filepath.Match(absF,absName); ok {
+			return true;
+		}
+	}
+
+	for _,p := range ignoreList.Glob {
+		ok,err := filepath.Match(p,absName);
+		if err != nil {
+			slog.Warn("Bad glob pattern","glob",p,"error",err)
+			continue;
+		}
+		if ok {
+			return true;
+		}
+	}
+
+	for _,ext := range m.config.Ext {
+		e := filepath.Ext(absName);
+		if e == "" {
+			continue;
+		}
+		if ext != e {
+			return true;
+		}
+	}
+
+	return !(evt.Has(fsnotify.Write) || evt.Has(fsnotify.Create) || evt.Has(fsnotify.Remove))
+}
 

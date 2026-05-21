@@ -15,6 +15,12 @@ func main() {
 		slog.Error("Fail to load configurations", "error", err)
 	}
 
+	slog.Warn("NO SUPPORT FOR POLLING YET.")
+	if config.Polling {
+		slog.Info("No support for polling yet")
+		return;
+	}
+
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 

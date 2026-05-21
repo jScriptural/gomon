@@ -2,8 +2,10 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	flag "github.com/spf13/pflag"
+	"io/fs"
 	"log/slog"
 	"os"
 	"strconv"
@@ -22,29 +24,34 @@ var (
 func LoadConfig() (*Config, error) {
 	config := &Config{
 		Delay: Duration(time.Duration(500 * time.Millisecond)),
-		Watch: []string{"."},
+		Watch: List{Dir: []string{"./"}},
 		Env:   os.Environ(),
-		Ignore: []string{
-			"./.git",
-			"./.gitignore",
-			"./node_modules",
-			"*.swp",
-			"*.swx",
+		Ignore: List{
+			Dir: []string{
+				"./node_modules",
+				"./.git",
+				"./github",
+			},
+			File: []string{"./.gitignore"},
+			Glob: []string{
+				"*.swp",
+				"*.swx",
+				"*.tmp*",
+			},
 		},
 	}
 
 	f, err := os.Open(configPath)
 	if err != nil {
-		switch {
-		case os.IsNotExist(err):
-			defer func() {
-				if e := writeConfigFile(config); e != nil {
-					slog.Info("Failed to update config", "error", e)
-				}
-			}()
-		default:
-			return nil,err;
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
 		}
+		defer func() {
+			if e := writeConfigFile(config); e != nil {
+				slog.Info("Failed to update config", "error", e)
+			}
+		}()
+
 	} else {
 		decoder := json.NewDecoder(f)
 		if err := decoder.Decode(config); err != nil {
@@ -73,9 +80,15 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	preStart := fs.String("prestart", "", "Command to run before starting application")
 	postBuild := fs.String("postbuild", "", "Command to run after building binary")
 	ext := fs.StringSliceP("ext", "e", nil, "Comma-separated file extensions and directory to watch(support simple glob patterns)")
-	ignore := fs.StringSliceP("ignore", "x", nil, "Comma-separated file extensions and directory to ignore(support simple glob patterns)")
+	ignoreDir := fs.StringSlice("ignoredir", nil, "Comma-separated directory to ignore")
+	ignoreFile := fs.StringSlice("ignorefile", nil, "Comma-separated list of file to ignore")
+	ignoreGlob := fs.StringSlice("ignoreglob", nil, "Comma-separated glob-pattern to ignore")
+	watchDir := fs.StringSlice("watchdir", nil, "Comma-separated directory to watch. If `ext` is empty, watch all files not ignored else filter by `ext`")
+	watchFile := fs.StringSlice("watchfile", nil, "Comma-separated file list to watch. If `ext` is not empty, file will be ignored if its extension is not in `ext`")
+	watchGlob := fs.StringSlice("watchglob", nil, "Comma-separated glob-pattern to watch. If `ext` is not empty, file that match glob will be ignored if its extension is not in `ext`")
 	env := fs.StringSlice("env", nil, "Comma-separated, key=value pair")
 	delay := fs.StringP("delay", "d", "500ms", "Debounce delay")
+	polling := fs.BoolP("polling", "p", false, "Prefer polling")
 
 	fs.Parse(args)
 
@@ -87,15 +100,36 @@ func parseFlags(args []string, config *Config, usage func()) error {
 		config.Run = *run
 	}
 
-	if fs.Changed("ignore") {
-		config.Ignore = *ignore
+	if fs.Changed("watchdir") {
+		config.Watch.Dir = *watchDir
 	}
+
+	if fs.Changed("watchfile") {
+		config.Watch.Dir = *watchFile
+	}
+
+	if fs.Changed("watchglob") {
+		config.Watch.Dir = *watchGlob
+	}
+
+	if fs.Changed("ignoredir") {
+		config.Ignore.Dir = *ignoreDir
+	}
+
+	if fs.Changed("ignorefile") {
+		config.Ignore.File = *ignoreFile
+	}
+
+	if fs.Changed("ignoreglob") {
+		config.Ignore.Glob = *ignoreGlob
+	}
+
 	if fs.Changed("ext") {
 		config.Ext = *ext
 	}
 	if fs.Changed("env") {
-		for _,v := range *env {
-			config.Env = append(config.Env,v)
+		for _, v := range *env {
+			config.Env = append(config.Env, v)
 		}
 	}
 	if fs.Changed("postbuild") {
@@ -109,6 +143,10 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	}
 	if fs.Changed("prebuild") {
 		config.Hooks.PreBuild = *preBuild
+	}
+
+	if fs.Changed("polling") {
+		config.Polling = *polling
 	}
 
 	if fs.Changed("delay") {
