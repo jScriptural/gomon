@@ -57,7 +57,7 @@ func LoadConfig() (*Config, error) {
 		if err := decoder.Decode(config); err != nil {
 			return nil, err
 		}
-		f.Close()
+		_ = f.Close()
 	}
 
 	err = parseFlags(os.Args[1:], config, usage)
@@ -90,7 +90,7 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	delay := fs.StringP("delay", "d", "500ms", "Debounce delay")
 	polling := fs.BoolP("polling", "p", false, "Prefer polling")
 
-	fs.Parse(args)
+	 _ = fs.Parse(args)
 
 	if fs.Changed("build") {
 		config.Build = *build
@@ -128,9 +128,7 @@ func parseFlags(args []string, config *Config, usage func()) error {
 		config.Ext = *ext
 	}
 	if fs.Changed("env") {
-		for _, v := range *env {
-			config.Env = append(config.Env, v)
-		}
+		config.Env = append(config.Env, *env...)
 	}
 	if fs.Changed("postbuild") {
 		config.Hooks.PostBuild = *postBuild
@@ -157,7 +155,7 @@ func parseFlags(args []string, config *Config, usage func()) error {
 		} else {
 			t, e := time.ParseDuration(*delay)
 			if e != nil {
-				return fmt.Errorf("Invalid delay duration flag: %w:%w", err, e)
+				return fmt.Errorf("invalid delay duration flag: %w:%w", err, e)
 			}
 			d = Duration(t)
 		}
@@ -172,7 +170,7 @@ func writeConfigFile(c *Config) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func(){ _ = f.Close()}()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", " ")

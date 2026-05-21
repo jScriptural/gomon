@@ -73,7 +73,7 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 // for debugging purpose
 func (c *Config) String() string {
 	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(c)
+	_ = json.NewEncoder(buffer).Encode(c)
 
 	return buffer.String()
 }

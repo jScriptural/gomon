@@ -182,7 +182,7 @@ func (e *Executor) start() error {
 			args[1:]...,
 		)
 	default:
-		return errors.New("No command to run")
+		return errors.New("no command to run")
 	}
 
 	cmd.Cancel = func() error {

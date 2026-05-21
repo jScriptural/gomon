@@ -54,7 +54,7 @@ func (m *Monitor) Watch() error {
 			slog.Warn("Attempting to re-initialize file watcher tree...")
 
 			// Close old instance safely
-			m.watcher.Close()
+			_ = m.watcher.Close()
 
 			// Rebuild a fresh watcher
 			w, err := fsnotify.NewWatcher()
@@ -237,6 +237,6 @@ func (m *Monitor)isIgnoredEvent(evt fsnotify.Event) bool {
 		}
 	}
 
-	return !(evt.Has(fsnotify.Write) || evt.Has(fsnotify.Create) || evt.Has(fsnotify.Remove))
+	return !evt.Has(fsnotify.Write) && !evt.Has(fsnotify.Create) && !evt.Has(fsnotify.Remove)
 }
 
