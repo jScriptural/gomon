@@ -31,7 +31,6 @@ func main() {
 		cancelFunc()
 	}
 
-	slog.Debug("Main blocks: reading unbuffered chan")
 
 	<-make(chan struct{})
 }
