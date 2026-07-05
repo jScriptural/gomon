@@ -74,20 +74,35 @@ func parseFlags(args []string, config *Config, usage func()) error {
 	fs.Usage = usage
 
 	build := fs.StringP("build", "b", "", "primary build command")
+
 	run := fs.StringP("run", "r", "", "Primary binary execution command")
-	preBuild := fs.String("prebuild", "", "Command to run before building binary")
-	postStart := fs.String("poststart", "", "Command to run after starting application")
-	preStart := fs.String("prestart", "", "Command to run before starting application")
-	postBuild := fs.String("postbuild", "", "Command to run after building binary")
+
+	preBuild := fs.StringSlice("prebuild", nil, "Command to run before building binary")
+
+	postStart := fs.StringSlice("poststart", nil, "Command to run after starting application")
+
+	preStart := fs.StringSlice("prestart", nil, "Command to run before starting application")
+
+	postBuild := fs.StringSlice("postbuild", nil, "Command to run after building binary")
+
 	ext := fs.StringSliceP("ext", "e", nil, "Comma-separated file extensions and directory to watch(support simple glob patterns)")
+
 	ignoreDir := fs.StringSlice("ignoredir", nil, "Comma-separated directory to ignore")
+
 	ignoreFile := fs.StringSlice("ignorefile", nil, "Comma-separated list of file to ignore")
+
 	ignoreGlob := fs.StringSlice("ignoreglob", nil, "Comma-separated glob-pattern to ignore")
+
 	watchDir := fs.StringSlice("watchdir", nil, "Comma-separated directory to watch. If `ext` is empty, watch all files not ignored else filter by `ext`")
+
 	watchFile := fs.StringSlice("watchfile", nil, "Comma-separated file list to watch. If `ext` is not empty, file will be ignored if its extension is not in `ext`")
+
 	watchGlob := fs.StringSlice("watchglob", nil, "Comma-separated glob-pattern to watch. If `ext` is not empty, file that match glob will be ignored if its extension is not in `ext`")
+
 	env := fs.StringSlice("env", nil, "Comma-separated, key=value pair")
+
 	delay := fs.StringP("delay", "d", "500ms", "Debounce delay")
+
 	polling := fs.BoolP("polling", "p", false, "Prefer polling")
 
 	_ = fs.Parse(args)

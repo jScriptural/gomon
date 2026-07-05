@@ -68,8 +68,8 @@ func (e *Executor) trigger() error {
 		slog.Info("Old process terminated")
 	}
 
-	if c := e.config.Hooks.PreBuild; c != "" {
-		slog.Info("Running prebuild hook", "prebuild", c)
+	if len(e.config.Hooks.PreBuild) != 0 {
+		slog.Info("Running prebuild hook", "prebuild", e.config.Hooks.PreBuild)
 		dur, err := e.runHooks(PREBUILD)
 		if err != nil {
 			slog.Error("prebuild failed", "error", err)
@@ -90,8 +90,8 @@ func (e *Executor) trigger() error {
 		slog.Info("Build successful", "duration", dur)
 	}
 
-	if c := e.config.Hooks.PostBuild; c != "" {
-		slog.Info("Running postbuild hook", "postbuild", c)
+	if len(e.config.Hooks.PostBuild) != 0 {
+		slog.Info("Running postbuild hook", "postbuild", e.config.Hooks.PostBuild)
 		dur, err := e.runHooks(POSTBUILD)
 		if err != nil {
 			slog.Error("postbuild failed", "error", err)
@@ -101,8 +101,8 @@ func (e *Executor) trigger() error {
 		slog.Info("postbuild successful", "duration", dur)
 	}
 
-	if c := e.config.Hooks.PreStart; c != "" {
-		slog.Info("Running prestart hook", "prestart", c)
+	if len(e.config.Hooks.PreStart) != 0 {
+		slog.Info("Running prestart hook", "prestart", e.config.Hooks.PreStart)
 		dur, err := e.runHooks(PRESTART)
 		if err != nil {
 			slog.Error("prestart failed", "error", err)
@@ -112,7 +112,7 @@ func (e *Executor) trigger() error {
 		slog.Info("prestart successful", "duration", dur)
 	}
 
-	if e.config.Hooks.PostStart != "" {
+	if len(e.config.Hooks.PostStart) != 0 {
 		e.canRunPostStart = make(chan struct{})
 		go e.runHooksPostStart()
 	}
@@ -203,7 +203,7 @@ func (e *Executor) start() error {
 	e.isCmdActive = true
 	slog.Info("Spawned Child", "pid", e.cmd.Process.Pid)
 
-	if e.config.Hooks.PostStart != "" {
+	if len(e.config.Hooks.PostStart) != 0 {
 		close(e.canRunPostStart)
 	}
 
