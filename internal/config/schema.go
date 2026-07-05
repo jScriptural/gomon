@@ -16,10 +16,10 @@ type Duration time.Duration
 // arguments
 
 type Hooks struct {
-	PreBuild  string `json:"prebuild"`
-	PostBuild string `json:"postbuild"`
-	PreStart  string `json:"prestart"`
-	PostStart string `json:"poststart"`
+	PreBuild  []string `json:"prebuild"`
+	PostBuild []string `json:"postbuild"`
+	PreStart  []string `json:"prestart"`
+	PostStart []string `json:"poststart"`
 }
 
 type List struct {

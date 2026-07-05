@@ -9,78 +9,65 @@ import (
 )
 
 func (e *Executor) runHooks(which int) (time.Duration, error) {
-	start := time.Now()
-	var dur time.Duration
-
 	var vec []string
+
+	start := time.Now()
 	switch which {
 	case PREBUILD:
-		vec = strings.Fields(e.config.Hooks.PreBuild)
+		vec = e.config.Hooks.PreBuild
 	case POSTBUILD:
-		vec = strings.Fields(e.config.Hooks.PostBuild)
+		vec = e.config.Hooks.PostBuild
 	case POSTSTART:
-		vec = strings.Fields(e.config.Hooks.PostStart)
+		vec = e.config.Hooks.PostStart
 	case PRESTART:
-		vec = strings.Fields(e.config.Hooks.PreStart)
+		vec = e.config.Hooks.PreStart
 	default:
+		_ = vec
 		return time.Since(start), nil
 	}
 
-	var cmd *exec.Cmd
-	n := len(vec)
-	switch {
-	case n == 1:
-		cmd = exec.CommandContext(
-			e.ctx,
-			vec[0],
-		)
-	case n > 1:
-		cmd = exec.CommandContext(
-			e.ctx,
-			vec[0],
-			vec[1:]...,
-		)
+	for _, c := range vec {
+		cmdToken := strings.Fields(c)
+		if err := e.executeCmd(cmdToken); err != nil {
+			return time.Since(start), err
+		}
 	}
 
-	cmd.Env = e.config.Env
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	cmd.Cancel = func() error {
-		return cmd.Process.Signal(SIGTERM)
-	}
-
-	if err := cmd.Run(); err != nil {
-		dur = time.Since(start)
-		return dur, err
-	}
-
-	dur = time.Since(start)
-	return dur, nil
-
+	return time.Since(start), nil
 }
 
 func (e *Executor) runHooksPostStart() {
 	<-e.canRunPostStart
 
-	vec := strings.Fields(e.config.Hooks.PostStart)
+	vec := e.config.Hooks.PostStart
+
+	for _, c := range vec {
+		cmdToken := strings.Fields(c)
+		if err := e.executeCmd(cmdToken); err != nil {
+			slog.Error("poststart failed", "error", err)
+			return
+		}
+	}
+}
+
+func (e *Executor) executeCmd(cmdToken []string) error {
 	var cmd *exec.Cmd
-	n := len(vec)
+
+	tokenCount := len(cmdToken)
 	switch {
-	case n == 1:
+	case tokenCount == 1:
 		cmd = exec.CommandContext(
 			e.ctx,
-			vec[0],
+			cmdToken[0],
 		)
-	case n > 1:
+	case tokenCount > 1:
 		cmd = exec.CommandContext(
 			e.ctx,
-			vec[0],
-			vec[1:]...,
+			cmdToken[0],
+			cmdToken[1:]...,
 		)
 	default:
-		return
+		return nil
 	}
 
 	cmd.Env = e.config.Env
@@ -91,8 +78,10 @@ func (e *Executor) runHooksPostStart() {
 	cmd.Cancel = func() error {
 		return cmd.Process.Signal(SIGTERM)
 	}
+
 	if err := cmd.Run(); err != nil {
-		slog.Error("poststart failed", "error", err)
-		return
+		return err
 	}
+
+	return nil
 }
