@@ -3,7 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
-	"github.com/jscriptural/gomon/internal/config"
+	"github.com/jhonoid/gomon/internal/config"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -83,7 +83,7 @@ func (e *Executor) trigger() error {
 		slog.Info("Building executable", "build", c)
 		dur, err := e.runBuild()
 		if err != nil {
-			slog.Error("Build failed", "error", err, "durarion", dur.String())
+			slog.Error("Build failed", "error", err, "duration", dur.String())
 			e.mu.Unlock()
 			return err
 		}

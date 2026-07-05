@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/jscriptural/gomon/internal/config"
-	"github.com/jscriptural/gomon/internal/logger"
-	"github.com/jscriptural/gomon/internal/monitor"
+	"github.com/jhonoid/gomon/internal/config"
+	"github.com/jhonoid/gomon/internal/logger"
+	"github.com/jhonoid/gomon/internal/monitor"
 	"log/slog"
 )
 
@@ -30,7 +30,6 @@ func main() {
 		slog.Error("exit", "error", err)
 		cancelFunc()
 	}
-
 
 	<-make(chan struct{})
 }
