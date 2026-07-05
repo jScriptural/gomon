@@ -1,4 +1,4 @@
-module github.com/jscriptural/gomon
+module github.com/jhonoid/gomon
 
 go 1.26.2
 
